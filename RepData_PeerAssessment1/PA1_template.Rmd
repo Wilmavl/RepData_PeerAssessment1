@@ -1,0 +1,234 @@
+---
+title: "PA1_template"
+author: "Wilma"
+date: "2 december 2017"
+output: html_document:
+  keep_md: true
+---
+
+* Dataset: [Activity monitoring data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 1. Loading and preprocessing the data
+
+```{r}
+setwd("~/GitHub/RepData_PeerAssessment1")
+activity <- read.csv("activity.csv")
+summary(activity)
+str(activity)
+
+# Turn the date data into a valid date class to allows for easier processing : Dates are in YYYY-MM-DD format
+dates <- strptime(activity$date, "%Y-%m-%d")
+activity$date <- dates
+
+# Keep a list of all possible days
+uniqueDates <- unique(dates)
+
+# Keep a list of all possible intervals
+uniqueIntervals <- unique(activity$interval)
+
+```
+
+
+## 2. What is mean total number of steps taken per day?
+### 2.1 Total number of steps per day
+
+```{r}
+stepsSplit <- split(activity$steps, dates$yday)
+sum_by_date <- sapply(stepsSplit, sum, na.rm=TRUE)
+sum_by_date
+
+```
+### 2.2 Histogram
+
+```{r}
+plot(uniqueDates, sum_by_date, main="Histogram of Total Steps per day", xlab="Days in October to November 2012", ylab="Frequency", type="h", lwd=4, col=blues9)
+
+
+```
+
+
+### 2.3 Mean of total number of steps taken per day
+
+```{r}
+mean_by_date <- sapply(stepsSplit, mean, na.rm=TRUE)
+mean_df <- data.frame(date=uniqueDates, mean_by_date=mean_by_date, row.names=NULL)
+mean_df
+
+```
+
+### 2.4 Median of total number of steps per day
+```{r}
+median_by_date <- sapply(stepsSplit, median, na.rm=TRUE)
+median_df <- data.frame(date=uniqueDates, median_by_date=median_by_date, row.names=NULL)
+median_df
+
+
+```
+
+
+## 3. What is the average daily activity pattern?
+
+### 3.1 Make a time series plot
+
+```{r}
+intervals <- split(activity$steps, activity$interval)
+avg_Interval <- sapply(intervals, mean, na.rm=TRUE)
+
+plot(uniqueIntervals, avg_Interval, type="l",main="Avg number of Steps per Interval - All Days", xlab="Interval",    ylab="Average No of Steps", lwd=2, col="green")
+
+
+ 
+
+
+```
+
+### 3.2 Interval with most steps
+
+```{r}
+
+maxIntervalDays <- max(avg_Interval, na.rm=TRUE)
+maxIndex <- as.numeric(which(avg_Interval == maxIntervalDays))
+maxInterval <- uniqueIntervals[maxIndex]
+maxInterval
+
+```
+
+
+
+
+## 4. Imputing missing values
+
+###4.1 Calculate and report the total number of missing values in the dataset
+
+```{r}
+nulls <- is.na(activity$steps)
+sum(nulls)
+```
+
+### 4.2 Fill in missing values
+
+```{r}
+mean_by_date[is.nan(mean_by_date)] <- 0
+summary(mean_by_date)
+meancolumn <- rep(mean_by_date, 288)
+
+Steps <- activity$steps
+null_steps <- is.na(Steps)
+summary (null_steps)
+
+Steps[null_steps] <- meancolumn[null_steps]
+
+```
+
+### 4.3 Create a new dataset
+
+```{r}
+activity2 <- activity
+summary(activity2)
+activity2$steps <- Steps
+summary(activity2)
+
+
+```
+
+### 4.4 Make a histogram of the total number of steps taken each day  
+```{r}
+stepsSplit2 <- split(activity2$steps, dates$yday)
+ stepsSplit2 <- split(activity2$steps, dates$yday)
+sum_by_date2 <- sapply(stepsSplit2, sum)
+sum_by_date2
+
+plot(uniqueDates, sum_by_date2, main="Histogram of Total Steps per day(After Imputing)", xlab="Days in October to November 2012", ylab="Frequency", type="h", lwd=4, col=blues9)
+
+```
+
+
+### 4.5 Calculate and report the mean and median total number of steps taken per day. 
+
+#### 4.5.1 Mean recalculated
+
+```{r}
+mean_by_date2 <- sapply(stepsSplit2, mean)
+mean_df2 <- data.frame(date=uniqueDates, mean_by_date = mean_by_date,mean_by_date2 = mean_by_date2 , row.names=NULL)
+mean_df2
+
+```
+
+#### 4.5.2 Median recalculated
+```{r}
+median_by_date2 <- sapply(stepsSplit2, median)
+median_df2 <- data.frame(date=uniqueDates, median_by_date = median_by_date, median_by_date2 = median_by_date2, row.names=NULL)
+median_df2
+
+```
+
+#### 4.5.3 Total number of steps per day recalculated
+
+```{r}
+sum_by_date2_df <- data.frame(date = uniqueDates, sum_by_date= sum_by_date, sum_by_date2=sum_by_date2, row.names=NULL)
+sum_by_date2_df
+```
+
+
+### 4.6 Do these values differ from the estimates from the first part of the assignment?
+
+After replacing the days with all '0', their mean values changed. 
+
+After replacing the days with all 'NA', their median values changed.
+
+For the other days nothing changed.
+
+
+
+### 4.7 What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+After replacing the days with all '0', their total daily values changed. 
+
+For the other days nothing changed.
+
+
+
+
+## 5. Are there differences in activity patterns between weekdays and weekends?
+
+### 5.1 Create a new factor variable in the dataset with two levels - "weekday" and "weekend" 
+
+```{r}
+
+weekdays <- dates$wday
+daytype <- rep(0, length(weekdays)-1)
+daytype[weekdays >= 1 & weekdays <= 5] <- 1
+daytype[weekdays == 6 | weekdays == 0] <- 2
+day_factor <- factor(daytype, levels=c(1,2), labels=c("Weekday", "Weekend"))
+activity2$type_of_day <- day_factor
+summary(activity2)
+activity2_Weekday <- activity2[activity2$type_of_day == "Weekday", ]
+activity2_Weekend <- activity2[activity2$type_of_day == "Weekend", ]
+
+
+```
+### 5.2 Make a panel plot containing a time series plot (i.e. type = "l") of the5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r}
+activity2_weekday_split <- split(activity2_Weekday$steps, activity2_Weekday$interval)
+activity2_weekend_split <- split(activity2_Weekend$steps, activity2_Weekend$interval)
+meanSteps_Weekday <- sapply(activity2_weekday_split, mean)
+meanSteps_Weekend <- sapply(activity2_weekend_split, mean)
+
+ par(mfcol=c(2,1))
+plot(uniqueIntervals, meanSteps_Weekday, type="l", main="Avg number of Steps per Interval - Weekdays", 
+ xlab="Interval", ylab="Average No of steps", lwd=2, col="darkgreen")
+plot(uniqueIntervals, meanSteps_Weekend, type="l", main="Avg number of Steps per Interval - Weekends", 
+ xlab="Interval", ylab="Average No of steps",lwd=2, col="green")
+ 
+
+```
+
+## End of Report
+
+
+
